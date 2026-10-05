@@ -1,6 +1,6 @@
 import { firebaseConfig } from './firebase-config.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js';
-import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js';
+import { getFirestore, doc, getDoc, setDoc, serverTimestamp, collection, onSnapshot } from 'https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js';
 
 const tasks = [
   {id:'programme', category:'Programme', title:'Le programme de conférence'},
@@ -75,6 +75,7 @@ const statusFilter = document.querySelector('#statusFilter');
 const saveAllBtn = document.querySelector('#saveAllBtn');
 const state = new Map();
 const rows = new Map();
+const dirtyRows = new Set();
 let saveTimer = null;
 
 if (!hasConfig) {
@@ -158,6 +159,7 @@ async function saveData(task, row, silent=false) {
   syncStatus.textContent = '● Synchronisation…';
   try {
     await setDoc(doc(db,'conferenceChecklist',task.id), {...data, updatedAt:serverTimestamp()}, {merge:true});
+    dirtyRows.delete(task.id);
     row.querySelector('.saved-at').textContent = '✓';
     row.classList.remove('saving');
     row.classList.add('saved');
@@ -178,6 +180,7 @@ function scheduleAutosave(task,row) {
   state.set(task.id, data);
   updateStats();
   applyFilters();
+  dirtyRows.add(task.id);
   row.querySelector('.saved-at').textContent = 'Modifié';
   clearTimeout(saveTimer);
   saveTimer = setTimeout(()=>saveData(task,row,true), 900);
@@ -193,6 +196,43 @@ async function saveAll() {
   syncStatus.textContent = '● Synchronisé';
   saveAllBtn.disabled = false;
   saveAllBtn.textContent = 'Enregistrer tout';
+}
+
+function startRealtimeSync() {
+  if (!db) return;
+
+  onSnapshot(collection(db, 'conferenceChecklist'), (snapshot) => {
+    let receivedRemoteUpdate = false;
+
+    snapshot.docChanges().forEach((change) => {
+      if (change.type === 'removed') return;
+      const id = change.doc.id;
+      const row = rows.get(id);
+      const task = tasks.find(t => t.id === id);
+      if (!row || !task) return;
+
+      const incoming = {...emptyData(task), ...change.doc.data()};
+      state.set(id, incoming);
+
+      // Ne pas écraser une cellule que cette personne est en train de modifier.
+      // Dès que sa modification est enregistrée, les prochaines mises à jour seront visibles.
+      const isEditingThisRow = dirtyRows.has(id) || row.contains(document.activeElement);
+      if (!isEditingThisRow) {
+        fill(row, incoming);
+        row.querySelector('.saved-at').textContent = '↻';
+        row.classList.add('remote-update');
+        setTimeout(() => row.classList.remove('remote-update'), 700);
+        receivedRemoteUpdate = true;
+      }
+    });
+
+    updateStats();
+    applyFilters();
+    if (receivedRemoteUpdate) syncStatus.textContent = '● Mise à jour en direct';
+  }, (error) => {
+    console.error('Realtime sync error:', error);
+    syncStatus.textContent = '● Erreur de synchronisation';
+  });
 }
 
 async function render() {
@@ -221,6 +261,7 @@ async function render() {
     });
   }
   updateStats();
+  startRealtimeSync();
 }
 
 search.addEventListener('input',applyFilters);

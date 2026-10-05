@@ -21,3 +21,7 @@ La collection utilisée est `conferenceChecklist`.
 Chaque ligne est enregistrée dans un document séparé.
 
 La page effectue une sauvegarde automatique après modification et possède aussi un bouton `Enregistrer tout`.
+
+
+## Collaboration en direct
+Cette version utilise Firestore en temps réel : toute personne ayant le lien peut voir les modifications des autres et les modifier à son tour. Les règles fournies autorisent volontairement la lecture et l'écriture publiques sur `conferenceChecklist`.
