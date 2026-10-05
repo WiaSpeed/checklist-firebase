@@ -1,33 +1,23 @@
-# AISEGF’26 Checklist — GitHub Pages + Firebase
+# AISEGF’26 Checklist — version tableau
 
-Projet statique très simple : HTML/CSS/JavaScript + Firebase Firestore.
-
-## 1. Créer Firebase
-1. Ouvrez https://console.firebase.google.com/
-2. Créez un projet.
-3. Build > Firestore Database > Create database.
-4. Project settings > Your apps > Web > créez une application Web.
-5. Copiez les valeurs `firebaseConfig` dans `firebase-config.js`.
-
-## 2. Règles Firestore (version la plus simple)
-Dans Firestore > Rules, copiez le contenu de `firestore.rules`, puis Publish.
-
-⚠️ Ces règles autorisent toute personne ayant le lien à lire et modifier la checklist. C'est pratique pour une checklist partagée, mais ce n'est pas adapté à des données sensibles.
-
-## 3. Publier sur GitHub Pages
-1. Créez un nouveau repository GitHub.
-2. Uploadez les fichiers de ce dossier à la racine du repository.
-3. GitHub > Settings > Pages.
-4. Source: Deploy from a branch.
-5. Branch: `main` / `(root)` puis Save.
-6. GitHub affichera l'URL publique du site.
+Cette version affiche toute la checklist dans un tableau partagé, plus facile à remplir et à lire.
 
 ## Fichiers
-- `index.html` : interface
-- `style.css` : design responsive
-- `app.js` : tâches + logique Firebase
-- `firebase-config.js` : votre configuration Firebase
-- `firestore.rules` : règles simples de partage
+- `index.html` : interface du tableau
+- `style.css` : design
+- `app.js` : données + Firestore + sauvegarde automatique
+- `firebase-config.js` : configuration Firebase déjà renseignée
+- `firestore.rules` : exemple de règles Firestore
 
-## Sécurité — amélioration recommandée
-Pour un usage public réel, ajoutez Firebase Authentication ou limitez l'écriture à des utilisateurs autorisés. Les clés Firebase Web ne sont pas des mots de passe : la sécurité repose surtout sur les règles Firestore.
+## Publication GitHub Pages
+1. Créez un dépôt GitHub.
+2. Importez tous les fichiers de ce dossier à la racine du dépôt.
+3. Ouvrez `Settings > Pages`.
+4. Choisissez `Deploy from a branch`.
+5. Sélectionnez `main` puis `/root` et cliquez sur Save.
+
+## Firestore
+La collection utilisée est `conferenceChecklist`.
+Chaque ligne est enregistrée dans un document séparé.
+
+La page effectue une sauvegarde automatique après modification et possède aussi un bouton `Enregistrer tout`.

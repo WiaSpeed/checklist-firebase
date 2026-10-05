@@ -12,7 +12,7 @@
     <div>
       <p class="eyebrow">Organisation</p>
       <h1>Checklist — Conférence AISEGF’26</h1>
-      <p class="subtitle">Suivi simple des tâches, responsables, dates et taux d’exécution.</p>
+      <p class="subtitle">Tableau partagé pour renseigner rapidement l’avancement de toutes les tâches.</p>
     </div>
     <div class="sync" id="syncStatus">● Prêt</div>
   </header>
@@ -21,74 +21,68 @@
     <section class="stats" aria-label="Résumé">
       <article><span id="statTotal">0</span><small>Tâches</small></article>
       <article><span id="statDone">0</span><small>Terminées</small></article>
-      <article><span id="statProgress">0%</span><small>Avancement</small></article>
+      <article><span id="statProgress">0%</span><small>Avancement moyen</small></article>
     </section>
 
     <section class="toolbar">
-      <input id="search" type="search" placeholder="Rechercher une tâche…" />
+      <input id="search" type="search" placeholder="Rechercher une tâche, un responsable…" />
       <select id="statusFilter">
         <option value="all">Tous les statuts</option>
         <option value="Non commencé">Non commencé</option>
         <option value="En cours">En cours</option>
         <option value="Terminé">Terminé</option>
       </select>
-      <button id="resetBtn" class="btn ghost">Réinitialiser l'affichage</button>
+      <button id="saveAllBtn" class="btn">Enregistrer tout</button>
+      <button id="resetBtn" class="btn ghost">Réinitialiser l’affichage</button>
     </section>
 
     <div id="notice" class="notice hidden"></div>
-    <section id="taskList" class="task-list" aria-live="polite"></section>
+
+    <section class="table-card">
+      <div class="table-wrap">
+        <table class="checklist-table">
+          <thead>
+            <tr>
+              <th class="col-task">Tâche</th>
+              <th class="col-action">Actions à entreprendre</th>
+              <th>Responsable</th>
+              <th>Date d’exécution</th>
+              <th>Actions entreprises</th>
+              <th>Statut</th>
+              <th>Taux d’exécution</th>
+              <th>Observation</th>
+              <th class="col-save">État</th>
+            </tr>
+          </thead>
+          <tbody id="taskBody"></tbody>
+        </table>
+      </div>
+    </section>
   </main>
 
-  <template id="taskTemplate">
-    <article class="task-card">
-      <div class="task-head">
-        <div>
-          <p class="task-category"></p>
-          <h2 class="task-title"></h2>
+  <template id="rowTemplate">
+    <tr class="task-row">
+      <td class="task-category"></td>
+      <td class="task-title"></td>
+      <td><input class="responsible" type="text" placeholder="Nom" /></td>
+      <td><input class="date" type="date" /></td>
+      <td><textarea class="actions" rows="2" placeholder="Ce qui a été réalisé…"></textarea></td>
+      <td>
+        <select class="status">
+          <option>Non commencé</option>
+          <option>En cours</option>
+          <option>Terminé</option>
+        </select>
+      </td>
+      <td>
+        <div class="progress-cell">
+          <input class="progress" type="number" min="0" max="100" step="5" value="0" />
+          <span>%</span>
         </div>
-        <span class="status-badge"></span>
-      </div>
-
-      <div class="grid">
-        <label>
-          <span>Responsable</span>
-          <input class="responsible" type="text" placeholder="Nom du responsable" />
-        </label>
-        <label>
-          <span>Date d’exécution</span>
-          <input class="date" type="date" />
-        </label>
-        <label>
-          <span>Statut</span>
-          <select class="status">
-            <option>Non commencé</option>
-            <option>En cours</option>
-            <option>Terminé</option>
-          </select>
-        </label>
-        <label>
-          <span>Taux d’exécution</span>
-          <div class="range-wrap">
-            <input class="progress" type="range" min="0" max="100" step="5" value="0" />
-            <output class="progressValue">0%</output>
-          </div>
-        </label>
-      </div>
-
-      <label class="wide">
-        <span>Actions entreprises</span>
-        <textarea class="actions" rows="2" placeholder="Ce qui a été réalisé…"></textarea>
-      </label>
-      <label class="wide">
-        <span>Observations</span>
-        <textarea class="notes" rows="2" placeholder="Remarques, blocages, informations utiles…"></textarea>
-      </label>
-
-      <div class="card-footer">
-        <span class="saved-at">Non enregistré</span>
-        <button class="btn saveBtn">Enregistrer</button>
-      </div>
-    </article>
+      </td>
+      <td><textarea class="notes" rows="2" placeholder="Remarques…"></textarea></td>
+      <td><span class="saved-at">—</span></td>
+    </tr>
   </template>
 
   <script type="module" src="app.js"></script>

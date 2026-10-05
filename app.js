@@ -35,13 +35,16 @@ const hasConfig = firebaseConfig.apiKey && !firebaseConfig.apiKey.includes('VOTR
 let db = null;
 if (hasConfig) db = getFirestore(initializeApp(firebaseConfig));
 
-const list = document.querySelector('#taskList');
-const template = document.querySelector('#taskTemplate');
+const body = document.querySelector('#taskBody');
+const template = document.querySelector('#rowTemplate');
 const syncStatus = document.querySelector('#syncStatus');
 const notice = document.querySelector('#notice');
 const search = document.querySelector('#search');
 const statusFilter = document.querySelector('#statusFilter');
+const saveAllBtn = document.querySelector('#saveAllBtn');
 const state = new Map();
+const rows = new Map();
+let saveTimer = null;
 
 if (!hasConfig) {
   notice.classList.remove('hidden');
@@ -49,48 +52,148 @@ if (!hasConfig) {
   syncStatus.textContent = '● Mode démo';
 }
 
-function emptyData(task){return {id:task.id, title:task.title, category:task.category, responsible:'', date:'', status:'Non commencé', progress:0, actions:'', notes:''}}
-function setBadge(card, status){
-  const badge=card.querySelector('.status-badge'); badge.textContent=status;
-  badge.className='status-badge '+(status==='Terminé'?'done':status==='En cours'?'progressing':'todo');
-}
-function collect(card, task){return {id:task.id,title:task.title,category:task.category,responsible:card.querySelector('.responsible').value.trim(),date:card.querySelector('.date').value,status:card.querySelector('.status').value,progress:Number(card.querySelector('.progress').value),actions:card.querySelector('.actions').value.trim(),notes:card.querySelector('.notes').value.trim()}}
-function fill(card, data){
-  card.querySelector('.responsible').value=data.responsible||''; card.querySelector('.date').value=data.date||''; card.querySelector('.status').value=data.status||'Non commencé'; card.querySelector('.progress').value=data.progress||0; card.querySelector('.progressValue').textContent=`${data.progress||0}%`; card.querySelector('.actions').value=data.actions||''; card.querySelector('.notes').value=data.notes||''; setBadge(card,data.status||'Non commencé');
-}
-function updateStats(){
-  const values=[...state.values()]; const total=values.length; const done=values.filter(x=>x.status==='Terminé').length; const avg=total?Math.round(values.reduce((s,x)=>s+Number(x.progress||0),0)/total):0;
-  document.querySelector('#statTotal').textContent=total; document.querySelector('#statDone').textContent=done; document.querySelector('#statProgress').textContent=`${avg}%`;
-}
-function applyFilters(){
-  const q=search.value.toLowerCase().trim(), f=statusFilter.value;
-  document.querySelectorAll('.task-card').forEach(card=>{const id=card.dataset.id,d=state.get(id);const text=(d.title+' '+d.category+' '+(d.responsible||'')).toLowerCase();card.style.display=((!q||text.includes(q))&&(f==='all'||d.status===f))?'':'none';});
+function emptyData(task) {
+  return {id:task.id, title:task.title, category:task.category, responsible:'', date:'', status:'Non commencé', progress:0, actions:'', notes:''};
 }
 
-async function loadData(task){
-  if(!db) return emptyData(task);
-  const snap=await getDoc(doc(db,'conferenceChecklist',task.id));
-  return snap.exists()?{...emptyData(task),...snap.data()}:emptyData(task);
-}
-async function saveData(task, card){
-  const data=collect(card,task); state.set(task.id,data); updateStats(); applyFilters();
-  if(!db){card.querySelector('.saved-at').textContent='Mode démo — non enregistré';return;}
-  const btn=card.querySelector('.saveBtn'); btn.disabled=true; btn.textContent='Enregistrement…'; syncStatus.textContent='● Synchronisation…';
-  try{await setDoc(doc(db,'conferenceChecklist',task.id),{...data,updatedAt:serverTimestamp()},{merge:true});card.querySelector('.saved-at').textContent='Enregistré à '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});syncStatus.textContent='● Synchronisé';}
-  catch(e){console.error(e);card.querySelector('.saved-at').textContent='Erreur d’enregistrement';syncStatus.textContent='● Erreur';alert("Impossible d'enregistrer. Vérifiez Firebase et les règles Firestore.");}
-  finally{btn.disabled=false;btn.textContent='Enregistrer';}
+function setRowStatus(row, status) {
+  row.dataset.status = status;
 }
 
-async function render(){
-  for(const task of tasks){
-    const card=template.content.firstElementChild.cloneNode(true); card.dataset.id=task.id; card.querySelector('.task-category').textContent=task.category; card.querySelector('.task-title').textContent=task.title; list.appendChild(card);
-    let data=emptyData(task); try{data=await loadData(task)}catch(e){console.error(e)} state.set(task.id,data); fill(card,data);
-    card.querySelector('.progress').addEventListener('input',e=>{card.querySelector('.progressValue').textContent=e.target.value+'%'; const d=collect(card,task); state.set(task.id,d); updateStats();});
-    card.querySelector('.status').addEventListener('change',e=>{setBadge(card,e.target.value);if(e.target.value==='Terminé'){card.querySelector('.progress').value=100;card.querySelector('.progressValue').textContent='100%'}const d=collect(card,task);state.set(task.id,d);updateStats();applyFilters();});
-    card.querySelector('.saveBtn').addEventListener('click',()=>saveData(task,card));
+function collect(row, task) {
+  const progress = Math.max(0, Math.min(100, Number(row.querySelector('.progress').value || 0)));
+  return {
+    id:task.id,
+    title:task.title,
+    category:task.category,
+    responsible:row.querySelector('.responsible').value.trim(),
+    date:row.querySelector('.date').value,
+    status:row.querySelector('.status').value,
+    progress,
+    actions:row.querySelector('.actions').value.trim(),
+    notes:row.querySelector('.notes').value.trim()
+  };
+}
+
+function fill(row, data) {
+  row.querySelector('.responsible').value = data.responsible || '';
+  row.querySelector('.date').value = data.date || '';
+  row.querySelector('.status').value = data.status || 'Non commencé';
+  row.querySelector('.progress').value = Number(data.progress || 0);
+  row.querySelector('.actions').value = data.actions || '';
+  row.querySelector('.notes').value = data.notes || '';
+  setRowStatus(row, data.status || 'Non commencé');
+}
+
+function updateStats() {
+  const values = [...state.values()];
+  const total = values.length;
+  const done = values.filter(x => x.status === 'Terminé').length;
+  const avg = total ? Math.round(values.reduce((s,x)=>s+Number(x.progress||0),0)/total) : 0;
+  document.querySelector('#statTotal').textContent = total;
+  document.querySelector('#statDone').textContent = done;
+  document.querySelector('#statProgress').textContent = `${avg}%`;
+}
+
+function applyFilters() {
+  const q = search.value.toLowerCase().trim();
+  const f = statusFilter.value;
+  rows.forEach((row,id) => {
+    const d = state.get(id);
+    const text = `${d.title} ${d.category} ${d.responsible||''} ${d.actions||''} ${d.notes||''}`.toLowerCase();
+    row.style.display = ((!q || text.includes(q)) && (f === 'all' || d.status === f)) ? '' : 'none';
+  });
+}
+
+async function loadData(task) {
+  if (!db) return emptyData(task);
+  const snap = await getDoc(doc(db,'conferenceChecklist',task.id));
+  return snap.exists() ? {...emptyData(task), ...snap.data()} : emptyData(task);
+}
+
+async function saveData(task, row, silent=false) {
+  const data = collect(row, task);
+  state.set(task.id, data);
+  updateStats();
+  applyFilters();
+
+  if (!db) {
+    row.querySelector('.saved-at').textContent = 'Démo';
+    return;
+  }
+
+  row.classList.add('saving');
+  row.querySelector('.saved-at').textContent = '…';
+  syncStatus.textContent = '● Synchronisation…';
+  try {
+    await setDoc(doc(db,'conferenceChecklist',task.id), {...data, updatedAt:serverTimestamp()}, {merge:true});
+    row.querySelector('.saved-at').textContent = '✓';
+    row.classList.remove('saving');
+    row.classList.add('saved');
+    setTimeout(()=>row.classList.remove('saved'), 900);
+    if (!silent) syncStatus.textContent = '● Synchronisé';
+  } catch (e) {
+    console.error(e);
+    row.querySelector('.saved-at').textContent = 'Erreur';
+    row.classList.remove('saving');
+    row.classList.add('save-error');
+    syncStatus.textContent = '● Erreur';
+    if (!silent) alert("Impossible d'enregistrer. Vérifiez Firebase et les règles Firestore.");
+  }
+}
+
+function scheduleAutosave(task,row) {
+  const data = collect(row, task);
+  state.set(task.id, data);
+  updateStats();
+  applyFilters();
+  row.querySelector('.saved-at').textContent = 'Modifié';
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(()=>saveData(task,row,true), 900);
+}
+
+async function saveAll() {
+  saveAllBtn.disabled = true;
+  saveAllBtn.textContent = 'Enregistrement…';
+  syncStatus.textContent = '● Synchronisation…';
+  for (const task of tasks) {
+    await saveData(task, rows.get(task.id), true);
+  }
+  syncStatus.textContent = '● Synchronisé';
+  saveAllBtn.disabled = false;
+  saveAllBtn.textContent = 'Enregistrer tout';
+}
+
+async function render() {
+  for (const task of tasks) {
+    const row = template.content.firstElementChild.cloneNode(true);
+    row.dataset.id = task.id;
+    row.querySelector('.task-category').textContent = task.category;
+    row.querySelector('.task-title').textContent = task.title;
+    body.appendChild(row);
+    rows.set(task.id,row);
+
+    let data = emptyData(task);
+    try { data = await loadData(task); } catch(e) { console.error(e); }
+    state.set(task.id,data);
+    fill(row,data);
+
+    row.querySelectorAll('input, textarea, select').forEach(el => {
+      el.addEventListener('input', () => scheduleAutosave(task,row));
+      el.addEventListener('change', () => {
+        if (el.classList.contains('status')) {
+          setRowStatus(row, el.value);
+          if (el.value === 'Terminé') row.querySelector('.progress').value = 100;
+        }
+        scheduleAutosave(task,row);
+      });
+    });
   }
   updateStats();
 }
 
-search.addEventListener('input',applyFilters); statusFilter.addEventListener('change',applyFilters); document.querySelector('#resetBtn').addEventListener('click',()=>{search.value='';statusFilter.value='all';applyFilters()});
+search.addEventListener('input',applyFilters);
+statusFilter.addEventListener('change',applyFilters);
+saveAllBtn.addEventListener('click',saveAll);
+document.querySelector('#resetBtn').addEventListener('click',()=>{search.value='';statusFilter.value='all';applyFilters();});
 render();
