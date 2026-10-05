@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="fr" dir="ltr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>AISEGF’26 — Checklist</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Organisation</p>
+      <h1>Checklist — Conférence AISEGF’26</h1>
+      <p class="subtitle">Suivi simple des tâches, responsables, dates et taux d’exécution.</p>
+    </div>
+    <div class="sync" id="syncStatus">● Prêt</div>
+  </header>
+
+  <main class="container">
+    <section class="stats" aria-label="Résumé">
+      <article><span id="statTotal">0</span><small>Tâches</small></article>
+      <article><span id="statDone">0</span><small>Terminées</small></article>
+      <article><span id="statProgress">0%</span><small>Avancement</small></article>
+    </section>
+
+    <section class="toolbar">
+      <input id="search" type="search" placeholder="Rechercher une tâche…" />
+      <select id="statusFilter">
+        <option value="all">Tous les statuts</option>
+        <option value="Non commencé">Non commencé</option>
+        <option value="En cours">En cours</option>
+        <option value="Terminé">Terminé</option>
+      </select>
+      <button id="resetBtn" class="btn ghost">Réinitialiser l'affichage</button>
+    </section>
+
+    <div id="notice" class="notice hidden"></div>
+    <section id="taskList" class="task-list" aria-live="polite"></section>
+  </main>
+
+  <template id="taskTemplate">
+    <article class="task-card">
+      <div class="task-head">
+        <div>
+          <p class="task-category"></p>
+          <h2 class="task-title"></h2>
+        </div>
+        <span class="status-badge"></span>
+      </div>
+
+      <div class="grid">
+        <label>
+          <span>Responsable</span>
+          <input class="responsible" type="text" placeholder="Nom du responsable" />
+        </label>
+        <label>
+          <span>Date d’exécution</span>
+          <input class="date" type="date" />
+        </label>
+        <label>
+          <span>Statut</span>
+          <select class="status">
+            <option>Non commencé</option>
+            <option>En cours</option>
+            <option>Terminé</option>
+          </select>
+        </label>
+        <label>
+          <span>Taux d’exécution</span>
+          <div class="range-wrap">
+            <input class="progress" type="range" min="0" max="100" step="5" value="0" />
+            <output class="progressValue">0%</output>
+          </div>
+        </label>
+      </div>
+
+      <label class="wide">
+        <span>Actions entreprises</span>
+        <textarea class="actions" rows="2" placeholder="Ce qui a été réalisé…"></textarea>
+      </label>
+      <label class="wide">
+        <span>Observations</span>
+        <textarea class="notes" rows="2" placeholder="Remarques, blocages, informations utiles…"></textarea>
+      </label>
+
+      <div class="card-footer">
+        <span class="saved-at">Non enregistré</span>
+        <button class="btn saveBtn">Enregistrer</button>
+      </div>
+    </article>
+  </template>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
