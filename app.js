@@ -37,6 +37,37 @@ if (hasConfig) db = getFirestore(initializeApp(firebaseConfig));
 
 const body = document.querySelector('#taskBody');
 const template = document.querySelector('#rowTemplate');
+
+function createRowElement() {
+  if (template && template.content && template.content.firstElementChild) {
+    return template.content.firstElementChild.cloneNode(true);
+  }
+  const wrapper = document.createElement('tbody');
+  wrapper.innerHTML = `
+    <tr class="task-row">
+      <td class="task-category"></td>
+      <td class="task-title"></td>
+      <td><input class="responsible" type="text" placeholder="Nom" /></td>
+      <td><input class="date" type="date" /></td>
+      <td><textarea class="actions" rows="2" placeholder="Ce qui a été réalisé…"></textarea></td>
+      <td>
+        <select class="status">
+          <option>Non commencé</option>
+          <option>En cours</option>
+          <option>Terminé</option>
+        </select>
+      </td>
+      <td>
+        <div class="progress-cell">
+          <input class="progress" type="number" min="0" max="100" step="5" value="0" />
+          <span>%</span>
+        </div>
+      </td>
+      <td><textarea class="notes" rows="2" placeholder="Remarques…"></textarea></td>
+      <td><span class="saved-at">—</span></td>
+    </tr>`;
+  return wrapper.firstElementChild;
+}
 const syncStatus = document.querySelector('#syncStatus');
 const notice = document.querySelector('#notice');
 const search = document.querySelector('#search');
@@ -166,7 +197,7 @@ async function saveAll() {
 
 async function render() {
   for (const task of tasks) {
-    const row = template.content.firstElementChild.cloneNode(true);
+    const row = createRowElement();
     row.dataset.id = task.id;
     row.querySelector('.task-category').textContent = task.category;
     row.querySelector('.task-title').textContent = task.title;
